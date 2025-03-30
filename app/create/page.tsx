@@ -48,18 +48,43 @@ export default function CreatePage() {
     }
   }
 
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Por favor selecciona un archivo de imagen válido')
+        alert('Please select a valid image file')
         return
       }
+
+      // Show preview immediately
       const reader = new FileReader()
       reader.onloadend = () => {
         setSelectedImage(reader.result as string)
       }
       reader.readAsDataURL(file)
+
+      // Upload file
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Error uploading file')
+        }
+
+        // Update the image with the uploaded file URL
+        setSelectedImage(data.filename)
+      } catch (error) {
+        console.error('Error uploading file:', error)
+        alert('Error uploading file. Please try again.')
+      }
     }
   }
 
@@ -67,11 +92,51 @@ export default function CreatePage() {
     fileInputRef.current?.click()
   }
 
-  const handleSaveAsDraft = () => {
-    // In a real app, this would save the post to a database
-    alert("Post saved as draft!")
-    router.push("/feed")
-  }
+  const handleSaveAsDraft = async () => {
+    try {
+      if (!selectedImage) {
+        alert("Please select an image first");
+        return;
+      }
+
+      if (!caption) {
+        alert("Please add a caption");
+        return;
+      }
+
+      if (selectedPlatforms.length === 0) {
+        alert("Please select at least one platform");
+        return;
+      }
+
+      // Create the post
+      const postData = {
+        username: "juan", // This would come from auth in a real app
+        caption,
+        image: selectedImage,
+        platform: selectedPlatforms[0], // Use first selected platform as main
+        platforms: selectedPlatforms,
+      };
+
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save post');
+      }
+
+      alert("Post saved as draft!");
+      router.push("/feed");
+    } catch (error) {
+      console.error('Error saving post:', error);
+      alert("Error saving post. Please try again.");
+    }
+  };
 
   const handleCancel = () => {
     if (confirm("Are you sure you want to discard this post?")) {

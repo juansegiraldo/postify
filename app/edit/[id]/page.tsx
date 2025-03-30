@@ -35,55 +35,6 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-// Mock data for posts
-const mockPosts = [
-  {
-    id: 1,
-    username: "juan",
-    caption:
-      "Friday, Oct. 15th, 2023 - Global Data Shopping Festival - Celebrate the world's biggest shopping day with our exclusive deals! #GlobalShopping #Deals",
-    image: "/placeholder.svg?height=400&width=400",
-    likes: 245,
-    comments: 32,
-    date: "Oct 15",
-    platform: "instagram",
-    platforms: ["instagram"],
-  },
-  {
-    id: 2,
-    username: "juan",
-    caption: "New product launch coming soon! Stay tuned for updates.",
-    image: "/placeholder.svg?height=400&width=400",
-    likes: 189,
-    comments: 24,
-    date: "Oct 18",
-    platform: "facebook",
-    platforms: ["facebook"],
-  },
-  {
-    id: 3,
-    username: "juan",
-    caption: "Exploring hidden gems in the city. What's your favorite spot?",
-    image: "/placeholder.svg?height=400&width=400",
-    likes: 312,
-    comments: 45,
-    date: "Oct 20",
-    platform: "instagram",
-    platforms: ["instagram"],
-  },
-  {
-    id: 4,
-    username: "juan",
-    caption: "Homemade pasta night! Recipe in bio.",
-    image: "/placeholder.svg?height=400&width=400",
-    likes: 278,
-    comments: 36,
-    date: "Oct 25",
-    platform: "instagram",
-    platforms: ["instagram"],
-  },
-]
-
 export default function EditPostPage() {
   const router = useRouter()
   const params = useParams()
@@ -97,17 +48,31 @@ export default function EditPostPage() {
 
   // Fetch post data
   useEffect(() => {
-    // In a real app, this would be an API call
-    const foundPost = mockPosts.find((p) => p.id === postId)
-    if (foundPost) {
-      setPost(foundPost)
-      setCaption(foundPost.caption)
-      setSelectedPlatforms(foundPost.platforms)
-    } else {
-      // Post not found, redirect to feed
-      router.push("/feed")
-    }
-  }, [postId, router])
+    const fetchPost = async () => {
+      try {
+        const response = await fetch('/api/posts');
+        if (!response.ok) {
+          throw new Error('Failed to fetch posts');
+        }
+        const posts = await response.json();
+        const foundPost = posts.find((p: any) => p.id === postId);
+        
+        if (foundPost) {
+          setPost(foundPost);
+          setCaption(foundPost.caption);
+          setSelectedPlatforms(foundPost.platforms || [foundPost.platform]);
+        } else {
+          // Post not found, redirect to feed
+          router.push("/feed");
+        }
+      } catch (error) {
+        console.error('Error fetching post:', error);
+        router.push("/feed");
+      }
+    };
+
+    fetchPost();
+  }, [postId, router]);
 
   const handlePlatformToggle = (platform: string) => {
     if (selectedPlatforms.includes(platform)) {
@@ -117,11 +82,45 @@ export default function EditPostPage() {
     }
   }
 
-  const handleSaveChanges = () => {
-    // In a real app, this would save the post to a database
-    alert("Post updated successfully!")
-    router.push("/feed")
-  }
+  const handleSaveChanges = async () => {
+    try {
+      if (!caption) {
+        alert("Please add a caption");
+        return;
+      }
+
+      if (selectedPlatforms.length === 0) {
+        alert("Please select at least one platform");
+        return;
+      }
+
+      // Update the post
+      const postData = {
+        ...post,
+        caption,
+        platform: selectedPlatforms[0], // Use first selected platform as main
+        platforms: selectedPlatforms,
+      };
+
+      const response = await fetch('/api/posts', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update post');
+      }
+
+      alert("Post updated successfully!");
+      router.push("/feed");
+    } catch (error) {
+      console.error('Error updating post:', error);
+      alert("Error updating post. Please try again.");
+    }
+  };
 
   const handleCancel = () => {
     if (confirm("Are you sure you want to discard your changes?")) {

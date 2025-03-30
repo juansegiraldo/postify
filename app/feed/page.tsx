@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,8 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -35,6 +37,7 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useRouter } from "next/navigation"
@@ -52,16 +55,23 @@ interface Post {
 }
 
 // Sortable Post Item component
-function SortablePostItem({ post }: { post: Post }) {
+function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: post.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-6 cursor-move">
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
+      {...listeners} 
+      className={`mb-6 cursor-move ${isDragging ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
+    >
       <div className="relative">
         <PostPreview username={post.username} caption={post.caption} imageUrl={post.image} />
         <div className="absolute top-2 right-2 z-10">
@@ -82,7 +92,6 @@ function SortablePostItem({ post }: { post: Post }) {
                 <Instagram className="h-4 w-4 mr-2" />
                 Post Now
               </DropdownMenuItem>
-              <DropdownMenuItem>Schedule Post</DropdownMenuItem>
               <DropdownMenuItem className="text-red-500">Delete Post</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -102,22 +111,42 @@ function SortablePostItem({ post }: { post: Post }) {
 }
 
 // Grid Item component
-function GridItem({ post, onEdit }: { post: Post; onEdit: (id: number) => void }) {
+function SortableGridItem({ post, isDragging }: { post: Post; isDragging?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: post.id })
+  const router = useRouter()
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/edit/${post.id}`);
+  };
+
   return (
-    <div className="relative aspect-square group">
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={`relative aspect-[4/5] group ${isDragging ? 'ring-2 ring-blue-500 z-10 p-4' : ''}`}
+    >
+      <div {...attributes} {...listeners} className="absolute inset-0 cursor-move" />
       <Image
         src={post.image || "/placeholder.svg"}
         alt={post.caption}
         width={400}
-        height={400}
+        height={500}
         className="object-cover w-full h-full"
       />
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+      <div className="absolute top-2 right-2 z-20">
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full"
-          onClick={() => onEdit(post.id)}
+          className="h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full shadow-sm"
+          onClick={handleEditClick}
         >
           <Edit2 className="h-4 w-4" />
         </Button>
@@ -129,100 +158,27 @@ function GridItem({ post, onEdit }: { post: Post; onEdit: (id: number) => void }
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState("posts")
   const [activeAccount, setActiveAccount] = useState("@JUAN")
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: 1,
-      username: "juan",
-      caption:
-        "Friday, Oct. 15th, 2023 - Global Data Shopping Festival - Celebrate the world's biggest shopping day with our exclusive deals! #GlobalShopping #Deals",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 245,
-      comments: 32,
-      date: "Oct 15",
-      platform: "instagram",
-    },
-    {
-      id: 2,
-      username: "juan",
-      caption: "New product launch coming soon! Stay tuned for updates.",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 189,
-      comments: 24,
-      date: "Oct 18",
-      platform: "facebook",
-    },
-    {
-      id: 3,
-      username: "juan",
-      caption: "Exploring hidden gems in the city. What's your favorite spot?",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 312,
-      comments: 45,
-      date: "Oct 20",
-      platform: "instagram",
-    },
-    {
-      id: 4,
-      username: "juan",
-      caption: "Homemade pasta night! Recipe in bio.",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 278,
-      comments: 36,
-      date: "Oct 25",
-      platform: "instagram",
-    },
-    {
-      id: 5,
-      username: "juan",
-      caption: "Art is the chronicle of our time.",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 345,
-      comments: 42,
-      date: "Oct 27",
-      platform: "instagram",
-    },
-    {
-      id: 6,
-      username: "juan",
-      caption: "Exhibitions - Madrid Art Week",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 289,
-      comments: 31,
-      date: "Oct 30",
-      platform: "instagram",
-    },
-    {
-      id: 7,
-      username: "juan",
-      caption: "New Publication",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 198,
-      comments: 24,
-      date: "Nov 2",
-      platform: "instagram",
-    },
-    {
-      id: 8,
-      username: "juan",
-      caption: "Artist Series",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 267,
-      comments: 29,
-      date: "Nov 5",
-      platform: "instagram",
-    },
-    {
-      id: 9,
-      username: "juan",
-      caption: "Contracts",
-      image: "/placeholder.svg?height=400&width=400",
-      likes: 176,
-      comments: 18,
-      date: "Nov 8",
-      platform: "instagram",
-    },
-  ])
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid")
+  const [posts, setPosts] = useState<Post[]>([])
+  const [activeId, setActiveId] = useState<number | null>(null)
+
+  // Fetch posts when component mounts
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const response = await fetch('/api/posts');
+        if (!response.ok) {
+          throw new Error('Failed to fetch posts');
+        }
+        const data = await response.json();
+        setPosts(data);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+      }
+    };
+
+    fetchPosts();
+  }, []);
 
   const router = useRouter()
 
@@ -234,8 +190,14 @@ export default function FeedPage() {
     }),
   )
 
+  // Handle drag start event
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as number)
+  }
+
   // Handle drag end event
   function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null)
     const { active, over } = event
 
     if (over && active.id !== over.id) {
@@ -265,38 +227,40 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="mr-4">
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
-            <h1 className="text-lg font-medium text-gray-900">Feed</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex border rounded-md overflow-hidden">
-              <Button
-                variant={viewMode === "list" ? "default" : "ghost"}
-                size="sm"
-                className="rounded-none"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "default" : "ghost"}
-                size="sm"
-                className="rounded-none"
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid className="h-4 w-4" />
-              </Button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center w-full">
+              <Link href="/" className="mr-4">
+                <ChevronLeft className="h-5 w-5" />
+              </Link>
+              <h1 className="text-lg font-medium text-gray-900">Feed</h1>
             </div>
-            <Link href="/create">
-              <Button variant="default" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Post
-              </Button>
-            </Link>
+            <div className="flex items-center gap-4">
+              <div className="flex border rounded-md overflow-hidden">
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "grid" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+              </div>
+              <Link href="/create">
+                <Button variant="default" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Post
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -377,26 +341,60 @@ export default function FeedPage() {
 
             <TabsContent value="posts" className="m-0 p-0 bg-gray-50">
               {filteredPosts.length > 0 ? (
-                viewMode === "list" ? (
-                  <div className="p-4">
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <DndContext 
+                  sensors={sensors} 
+                  collisionDetection={closestCenter} 
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  {viewMode === "list" ? (
+                    <div className="p-4">
                       <SortableContext
                         items={filteredPosts.map((post) => post.id)}
                         strategy={verticalListSortingStrategy}
                       >
                         {filteredPosts.map((post) => (
-                          <SortablePostItem key={post.id} post={post} />
+                          <SortablePostItem 
+                            key={post.id} 
+                            post={post} 
+                            isDragging={activeId === post.id}
+                          />
                         ))}
                       </SortableContext>
-                    </DndContext>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-[1px] bg-gray-200">
-                    {filteredPosts.map((post) => (
-                      <GridItem key={post.id} post={post} onEdit={(id) => router.push(`/edit/${id}`)} />
-                    ))}
-                  </div>
-                )
+                      <DragOverlay>
+                        {activeId ? (
+                          <SortablePostItem 
+                            post={filteredPosts.find(p => p.id === activeId)!} 
+                            isDragging={true}
+                          />
+                        ) : null}
+                      </DragOverlay>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-[1px] bg-gray-200">
+                      <SortableContext
+                        items={filteredPosts.map((post) => post.id)}
+                        strategy={rectSortingStrategy}
+                      >
+                        {filteredPosts.map((post) => (
+                          <SortableGridItem 
+                            key={post.id} 
+                            post={post}
+                            isDragging={activeId === post.id}
+                          />
+                        ))}
+                      </SortableContext>
+                      <DragOverlay>
+                        {activeId ? (
+                          <SortableGridItem 
+                            post={filteredPosts.find(p => p.id === activeId)!}
+                            isDragging={true}
+                          />
+                        ) : null}
+                      </DragOverlay>
+                    </div>
+                  )}
+                </DndContext>
               ) : (
                 <div className="text-center py-12 p-4">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
