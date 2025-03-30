@@ -41,7 +41,6 @@ import type { DragEndEvent } from '@dnd-kit/core';
 
 interface SortableImageProps {
   image: string;
-  index: number;
   isSelected: boolean;
   onClick: () => void;
   onDelete: () => void;
@@ -52,9 +51,9 @@ interface PostPageProps {
   id?: number;
 }
 
-function SortableImage({ image, index, isSelected, onClick, onDelete }: SortableImageProps) {
+function SortableImage({ image, isSelected, onClick, onDelete }: SortableImageProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: index,
+    id: image,
   });
 
   const style = {
@@ -83,7 +82,7 @@ function SortableImage({ image, index, isSelected, onClick, onDelete }: Sortable
       <div className="w-full h-full relative">
         <Image
           src={image}
-          alt={`Thumbnail ${index + 1}`}
+          alt={`Thumbnail`}
           width={80}
           height={80}
           className="object-cover h-full w-full"
@@ -248,31 +247,50 @@ export default function PostPage({ mode, id }: PostPageProps) {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
+    console.log("DragEnd Event:", { activeId: active.id, overId: over?.id });
+
     if (over && active.id !== over.id) {
-      const oldIndex = Number(active.id);
-      const newIndex = Number(over.id);
+      // Find indices based on current state before update
+      const oldIndex = images.findIndex(img => img === active.id);
+      const newIndex = images.findIndex(img => img === over.id);
+      console.log("Calculated Indices:", { oldIndex, newIndex });
+
+      if (oldIndex === -1 || newIndex === -1) {
+         console.warn("Could not find dragged items in state:", { activeId: active.id, overId: over.id });
+         return; // Exit if indices aren't found
+      }
+
+      // Create the new array
+      const newImagesArray = [...images];
+      const [movedImage] = newImagesArray.splice(oldIndex, 1);
+      newImagesArray.splice(newIndex, 0, movedImage);
+      console.log("New Images Array:", newImagesArray);
       
-      setImages(prevImages => {
-        const newImages = [...prevImages];
-        const [movedImage] = newImages.splice(oldIndex, 1);
-        newImages.splice(newIndex, 0, movedImage);
-        return newImages;
-      });
-      
+      // Update the images state
+      setImages(newImagesArray);
+
+      // Update currentImageIndex based on the original move
       if (currentImageIndex === oldIndex) {
+        console.log(`Updating currentImageIndex: ${currentImageIndex} -> ${newIndex}`);
         setCurrentImageIndex(newIndex);
       } else if (
         currentImageIndex > oldIndex && 
         currentImageIndex <= newIndex
       ) {
+        console.log(`Updating currentImageIndex: ${currentImageIndex} -> ${currentImageIndex - 1}`);
         setCurrentImageIndex(prev => prev - 1);
       } else if (
         currentImageIndex < oldIndex && 
         currentImageIndex >= newIndex
       ) {
+        console.log(`Updating currentImageIndex: ${currentImageIndex} -> ${currentImageIndex + 1}`);
         setCurrentImageIndex(prev => prev + 1);
+      } else {
+        console.log(`CurrentImageIndex (${currentImageIndex}) not affected by move (${oldIndex} -> ${newIndex})`);
       }
+      // Otherwise, the selected index wasn't affected relative to the moved item
+    } else {
+      console.log("DragEnd ignored:", { overExists: !!over, idChanged: over ? active.id !== over.id : 'N/A' });
     }
   };
 
@@ -489,14 +507,13 @@ export default function PostPage({ mode, id }: PostPageProps) {
                       >
                         <div className="flex gap-2 overflow-x-auto pb-2">
                           <SortableContext
-                            items={images.map((_, index) => index)}
+                            items={images}
                             strategy={horizontalListSortingStrategy}
                           >
                             {images.map((image, index) => (
                               <SortableImage
-                                key={index}
+                                key={image}
                                 image={image}
-                                index={index}
                                 isSelected={currentImageIndex === index}
                                 onClick={() => handleSelectImage(index)}
                                 onDelete={() => handleDeleteImage(index)}

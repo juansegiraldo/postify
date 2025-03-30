@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -161,6 +161,8 @@ export default function FeedPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid")
   const [posts, setPosts] = useState<Post[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingOverAdd, setIsDraggingOverAdd] = useState(false);
 
   // Fetch posts when component mounts
   useEffect(() => {
@@ -189,6 +191,123 @@ export default function FeedPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   )
+
+  // --- New Handlers for Quick Add ---
+
+  // Handles the actual file processing and post creation
+  const handleQuickCreatePost = async (file: File) => {
+    if (!file || !file.type.startsWith('image/')) {
+      alert('Please select or drop an image file.');
+      // Reset drag state just in case
+      setIsDraggingOverAdd(false);
+      return;
+    }
+    setIsDraggingOverAdd(false); // Reset drag state
+
+    try {
+      // 1. Upload the image
+      const formData = new FormData();
+      formData.append('file', file);
+      console.log("Uploading file:", file.name); // Debug log
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.text(); // Get more error details
+        console.error("Upload failed:", errorData);
+        throw new Error('Failed to upload image');
+      }
+      const uploadData = await uploadResponse.json();
+       // Ensure the filename is correctly accessed, adjust if API returns different structure
+      const imageUrl = uploadData.filename || uploadData.url || uploadData.fileUrl;
+      console.log("Image uploaded:", imageUrl); // Debug log
+
+      if (!imageUrl) {
+         console.error("Upload response did not contain a valid image URL/filename:", uploadData);
+         throw new Error("Image URL not found in upload response.")
+      }
+
+
+      // 2. Create the post object (assuming API assigns ID)
+      const newPostData = {
+        username: activeAccount, // Use the currently selected account
+        caption: "created automatically",
+        image: imageUrl, // Use the URL from the upload response
+        likes: 0,
+        comments: 0,
+        date: new Date().toLocaleDateString(), // Simple date string
+        platform: "instagram", // Default platform
+        // Add other necessary fields if your Post type/API requires them
+      };
+      console.log("Creating post with data:", newPostData); // Debug log
+
+      // 3. Save the post via API
+      const postResponse = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPostData),
+      });
+
+      if (!postResponse.ok) {
+        const errorData = await postResponse.text(); // Get more error details
+        console.error("Post creation failed:", errorData);
+        throw new Error('Failed to create post');
+      }
+      const createdPost = await postResponse.json(); // Assuming API returns the created post with ID
+      console.log("Post created:", createdPost); // Debug log
+
+      // 4. Update state - add to the beginning of the list
+      setPosts(prevPosts => [createdPost, ...prevPosts]);
+
+    } catch (error) {
+      console.error('Error creating quick post:', error);
+      alert(`Failed to create post: ${error instanceof Error ? error.message : 'Unknown error'}. Check console for details.`);
+    } finally {
+       // Reset file input value in case it was triggered by click
+       if (fileInputRef.current) {
+         fileInputRef.current.value = "";
+       }
+    }
+  };
+
+  // Triggers hidden file input click
+  const handleQuickAddClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handles file selection from the hidden input
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleQuickCreatePost(file);
+    }
+  };
+
+  // --- Drag and Drop Handlers for the Add Button ---
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault(); // Necessary to allow dropping
+    setIsDraggingOverAdd(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingOverAdd(false);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingOverAdd(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      handleQuickCreatePost(file);
+    } else {
+       console.log("No file dropped or file type not supported."); // Debug log
+    }
+  };
+
+  // --- End New Handlers ---
 
   // Handle drag start event
   function handleDragStart(event: DragStartEvent) {
@@ -266,6 +385,15 @@ export default function FeedPage() {
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6">
+        {/* Hidden file input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileInputChange}
+          accept="image/*"
+          style={{ display: 'none' }}
+        />
+
         <Card className="overflow-hidden border-0 shadow-lg rounded-xl">
           {/* Phone mockup header */}
           <div className="bg-white p-4 flex items-center justify-between border-b">
@@ -340,15 +468,15 @@ export default function FeedPage() {
             </TabsList>
 
             <TabsContent value="posts" className="m-0 p-0 bg-gray-50">
-              {filteredPosts.length > 0 ? (
-                <DndContext 
-                  sensors={sensors} 
-                  collisionDetection={closestCenter} 
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                >
-                  {viewMode === "list" ? (
-                    <div className="p-4">
+              {viewMode === "list" ? (
+                <div className="p-4">
+                  {filteredPosts.length > 0 ? (
+                    <DndContext 
+                      sensors={sensors} 
+                      collisionDetection={closestCenter} 
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                    >
                       <SortableContext
                         items={filteredPosts.map((post) => post.id)}
                         strategy={verticalListSortingStrategy}
@@ -369,43 +497,71 @@ export default function FeedPage() {
                           />
                         ) : null}
                       </DragOverlay>
-                    </div>
+                    </DndContext>
                   ) : (
-                    <div className="grid grid-cols-3 gap-[1px] bg-gray-200">
-                      <SortableContext
-                        items={filteredPosts.map((post) => post.id)}
-                        strategy={rectSortingStrategy}
-                      >
-                        {filteredPosts.map((post) => (
-                          <SortableGridItem 
-                            key={post.id} 
-                            post={post}
-                            isDragging={activeId === post.id}
-                          />
-                        ))}
-                      </SortableContext>
-                      <DragOverlay>
-                        {activeId ? (
-                          <SortableGridItem 
-                            post={filteredPosts.find(p => p.id === activeId)!}
-                            isDragging={true}
-                          />
-                        ) : null}
-                      </DragOverlay>
+                    <div className="text-center py-12 p-4">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+                      <p className="text-gray-500 mb-6">Create your first post to see it here.</p>
+                      <Link href="/create">
+                        <Button>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create a new post
+                        </Button>
+                      </Link>
                     </div>
                   )}
-                </DndContext>
-              ) : (
-                <div className="text-center py-12 p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
-                  <p className="text-gray-500 mb-6">Create your first post to see it here.</p>
-                  <Link href="/create">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create a new post
-                    </Button>
-                  </Link>
                 </div>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="grid grid-cols-3 gap-[1px] bg-gray-200">
+                    {/* Add Post Button/Drop Zone */}
+                    <div
+                      className={`relative aspect-[4/5] flex items-center justify-center bg-slate-100 hover:bg-slate-200 cursor-pointer ${isDraggingOverAdd ? 'ring-2 ring-blue-500 ring-inset' : ''}`}
+                      onClick={handleQuickAddClick}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <Plus className="h-12 w-12 text-slate-400" />
+                      <span className="absolute bottom-2 text-xs text-slate-500">Add Post</span>
+                    </div>
+
+                    {/* Existing Sortable Posts */}
+                    <SortableContext
+                      items={filteredPosts.map((post) => post.id)}
+                      strategy={rectSortingStrategy}
+                    >
+                      {filteredPosts.map((post) => (
+                        <SortableGridItem
+                          key={post.id}
+                          post={post}
+                          isDragging={activeId === post.id}
+                        />
+                      ))}
+                    </SortableContext>
+                    {/* Drag Overlay remains the same */}
+                    <DragOverlay>
+                      {activeId ? (
+                        <SortableGridItem
+                          post={filteredPosts.find(p => p.id === activeId)!}
+                          isDragging={true}
+                        />
+                      ) : null}
+                    </DragOverlay>
+                  </div>
+                </DndContext>
+              )}
+              {/* Display message if grid is empty except for add button */}
+              {viewMode === 'grid' && filteredPosts.length === 0 && (
+                 <div className="text-center py-12 p-4 col-span-3">
+                   <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+                   <p className="text-gray-500 mb-6">Click or drag an image to the '+' to add your first post.</p>
+                 </div>
               )}
             </TabsContent>
 
