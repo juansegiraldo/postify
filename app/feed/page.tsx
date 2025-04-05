@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Progress } from "@/components/ui/progress"
+import { useToast } from "@/components/ui/use-toast"
 import {
   ChevronLeft,
   ChevronDown,
@@ -18,6 +20,7 @@ import {
   Twitter,
   Grid,
   List,
+  Loader2,
 } from "lucide-react"
 import { PostPreview } from "@/components/post-preview"
 import {
@@ -57,12 +60,28 @@ interface Post {
 // Sortable Post Item component
 function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: post.id })
+  const router = useRouter()
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   }
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log(`Navigating to edit page for post ID: ${post.id}`);
+    router.push(`/edit/${post.id}`);
+  };
+
+  // Ensure post data is valid
+  const safePost = {
+    ...post,
+    username: post.username || "user",
+    caption: post.caption || "",
+    image: post.image || "/placeholder.svg",
+  };
 
   return (
     <div 
@@ -73,7 +92,11 @@ function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boole
       className={`mb-6 cursor-move ${isDragging ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
     >
       <div className="relative">
-        <PostPreview username={post.username} caption={post.caption} imageUrl={post.image} />
+        <PostPreview 
+          username={safePost.username} 
+          caption={safePost.caption} 
+          imageUrl={safePost.image} 
+        />
         <div className="absolute top-2 right-2 z-10">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -82,12 +105,10 @@ function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boole
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <Link href={`/edit/${post.id}`}>
-                <DropdownMenuItem>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit Post
-                </DropdownMenuItem>
-              </Link>
+              <DropdownMenuItem onClick={handleEditClick}>
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit Post
+              </DropdownMenuItem>
               <DropdownMenuItem>
                 <Instagram className="h-4 w-4 mr-2" />
                 Post Now
@@ -98,12 +119,12 @@ function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boole
         </div>
       </div>
       <div className="mt-2 flex justify-between items-center text-sm text-gray-500">
-        <span>{post.date}</span>
+        <span>{safePost.date}</span>
         <div className="flex items-center">
-          {post.platform === "instagram" && <Instagram className="h-3 w-3 mr-1" />}
-          {post.platform === "facebook" && <Facebook className="h-3 w-3 mr-1" />}
-          {post.platform === "twitter" && <Twitter className="h-3 w-3 mr-1" />}
-          <span className="text-xs">{post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}</span>
+          {safePost.platform === "instagram" && <Instagram className="h-3 w-3 mr-1" />}
+          {safePost.platform === "facebook" && <Facebook className="h-3 w-3 mr-1" />}
+          {safePost.platform === "twitter" && <Twitter className="h-3 w-3 mr-1" />}
+          <span className="text-xs">{safePost.platform ? safePost.platform.charAt(0).toUpperCase() + safePost.platform.slice(1) : "Instagram"}</span>
         </div>
       </div>
     </div>
@@ -124,7 +145,16 @@ function SortableGridItem({ post, isDragging }: { post: Post; isDragging?: boole
   const handleEditClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log(`Navigating to edit page for post ID: ${post.id}`);
     router.push(`/edit/${post.id}`);
+  };
+
+  // Ensure post data is valid
+  const safePost = {
+    ...post,
+    username: post.username || "user",
+    caption: post.caption || "",
+    image: post.image || "/placeholder.svg",
   };
 
   return (
@@ -135,8 +165,8 @@ function SortableGridItem({ post, isDragging }: { post: Post; isDragging?: boole
     >
       <div {...attributes} {...listeners} className="absolute inset-0 cursor-move" />
       <Image
-        src={post.image || "/placeholder.svg"}
-        alt={post.caption}
+        src={safePost.image}
+        alt={safePost.caption}
         width={400}
         height={500}
         className="object-cover w-full h-full"
@@ -163,6 +193,9 @@ export default function FeedPage() {
   const [activeId, setActiveId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDraggingOverAdd, setIsDraggingOverAdd] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const { toast } = useToast();
 
   // Fetch posts when component mounts
   useEffect(() => {
@@ -197,22 +230,43 @@ export default function FeedPage() {
   // Handles the actual file processing and post creation
   const handleQuickCreatePost = async (file: File) => {
     if (!file || !file.type.startsWith('image/')) {
-      alert('Please select or drop an image file.');
+      toast({
+        title: "Invalid file",
+        description: "Please select or drop an image file.",
+        variant: "destructive",
+      });
       // Reset drag state just in case
       setIsDraggingOverAdd(false);
       return;
     }
     setIsDraggingOverAdd(false); // Reset drag state
+    setIsUploading(true);
+    setUploadProgress(0);
 
     try {
       // 1. Upload the image
       const formData = new FormData();
       formData.append('file', file);
       console.log("Uploading file:", file.name); // Debug log
+      
+      // Simulate progress for upload
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 300);
+      
       const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.text(); // Get more error details
@@ -229,15 +283,14 @@ export default function FeedPage() {
          throw new Error("Image URL not found in upload response.")
       }
 
-
       // 2. Create the post object (assuming API assigns ID)
       const newPostData = {
-        username: activeAccount, // Use the currently selected account
+        username: activeAccount || "user", // Ensure username is not undefined
         caption: "created automatically",
         image: imageUrl, // Use the URL from the upload response
         likes: 0,
         comments: 0,
-        date: new Date().toLocaleDateString(), // Simple date string
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), // Simple date string
         platform: "instagram", // Default platform
         // Add other necessary fields if your Post type/API requires them
       };
@@ -258,17 +311,41 @@ export default function FeedPage() {
       const createdPost = await postResponse.json(); // Assuming API returns the created post with ID
       console.log("Post created:", createdPost); // Debug log
 
+      // Ensure the created post has all required fields
+      const safeCreatedPost = {
+        ...createdPost,
+        username: createdPost.username || activeAccount || "user",
+        caption: createdPost.caption || "created automatically",
+        image: createdPost.image || imageUrl,
+        platform: createdPost.platform || "instagram",
+      };
+
       // 4. Update state - add to the beginning of the list
-      setPosts(prevPosts => [createdPost, ...prevPosts]);
+      setPosts(prevPosts => [safeCreatedPost, ...prevPosts]);
+      
+      // Show success toast
+      toast({
+        title: "Post created",
+        description: "Your post has been successfully created.",
+      });
 
     } catch (error) {
       console.error('Error creating quick post:', error);
-      alert(`Failed to create post: ${error instanceof Error ? error.message : 'Unknown error'}. Check console for details.`);
+      toast({
+        title: "Error creating post",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
     } finally {
-       // Reset file input value in case it was triggered by click
-       if (fileInputRef.current) {
-         fileInputRef.current.value = "";
-       }
+      // Reset file input value in case it was triggered by click
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      // Reset upload state after a short delay to show 100% completion
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 500);
     }
   };
 
@@ -470,6 +547,19 @@ export default function FeedPage() {
             <TabsContent value="posts" className="m-0 p-0 bg-gray-50">
               {viewMode === "list" ? (
                 <div className="p-4">
+                  {isUploading && (
+                    <div className="mb-6 p-4 bg-white rounded-lg shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <span className="text-sm font-medium">Uploading post...</span>
+                        </div>
+                        <span className="text-xs text-gray-500">{uploadProgress}%</span>
+                      </div>
+                      <Progress value={uploadProgress} className="h-2" />
+                    </div>
+                  )}
+                  
                   {filteredPosts.length > 0 ? (
                     <DndContext 
                       sensors={sensors} 
@@ -527,8 +617,18 @@ export default function FeedPage() {
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
                     >
-                      <Plus className="h-12 w-12 text-slate-400" />
-                      <span className="absolute bottom-2 text-xs text-slate-500">Add Post</span>
+                      {isUploading ? (
+                        <div className="flex flex-col items-center justify-center p-4">
+                          <Loader2 className="h-8 w-8 text-slate-400 animate-spin mb-2" />
+                          <span className="text-xs text-slate-500">Uploading...</span>
+                          <Progress value={uploadProgress} className="h-1 w-full mt-2" />
+                        </div>
+                      ) : (
+                        <>
+                          <Plus className="h-12 w-12 text-slate-400" />
+                          <span className="absolute bottom-2 text-xs text-slate-500">Add Post</span>
+                        </>
+                      )}
                     </div>
 
                     {/* Existing Sortable Posts */}

@@ -24,16 +24,19 @@ export function PostPreview({
   onShare = () => {},
   onSave = () => {},
 }: PostPreviewProps) {
+  // Ensure username is a string and has a default value if undefined
+  const safeUsername = username || "user";
+  
   return (
     <div className="rounded-lg overflow-hidden border border-gray-200 bg-white">
       <div className="p-4">
         <div className="flex items-center">
           <Avatar className="h-8 w-8">
-            <AvatarImage src="/placeholder.svg?height=32&width=32" alt={`@${username}`} />
-            <AvatarFallback>{username.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarImage src="/placeholder.svg?height=32&width=32" alt={`@${safeUsername}`} />
+            <AvatarFallback>{safeUsername.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="ml-2">
-            <h4 className="text-sm font-medium">@{username.toUpperCase()}</h4>
+            <h4 className="text-sm font-medium">@{safeUsername.toUpperCase()}</h4>
           </div>
         </div>
       </div>

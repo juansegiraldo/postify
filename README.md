@@ -9,6 +9,11 @@ Postify es una aplicación web moderna para la gestión y programación de conte
 - 📅 Programación de publicaciones
 - 📈 Análisis de rendimiento
 - ⚡ Acciones rápidas para crear y gestionar contenido
+- 🔄 Vista de cuadrícula y lista para visualizar publicaciones
+- 📤 Carga de imágenes con indicador de progreso
+- 🔔 Notificaciones toast para feedback al usuario
+- 🖱️ Funcionalidad de arrastrar y soltar para reorganizar publicaciones
+- 🛠️ Manejo robusto de errores y validación de datos
 
 ## 🛠️ Tecnologías
 
@@ -17,7 +22,10 @@ Postify es una aplicación web moderna para la gestión y programación de conte
 - [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
 - [Radix UI](https://www.radix-ui.com/)
+- [Shadcn UI](https://ui.shadcn.com/)
 - [Lucide Icons](https://lucide.dev/)
+- [Supabase](https://supabase.com/) (Base de datos y autenticación)
+- [DND Kit](https://dnd-kit.com/) (Drag and Drop)
 
 ## 🚀 Inicio Rápido
 
@@ -31,12 +39,18 @@ Postify es una aplicación web moderna para la gestión y programación de conte
    pnpm install
    ```
 
-3. **Iniciar el servidor de desarrollo**
+3. **Configurar variables de entorno**
+   ```bash
+   cp .env.example .env.local
+   ```
+   Edita el archivo `.env.local` con tus credenciales de Supabase.
+
+4. **Iniciar el servidor de desarrollo**
    ```bash
    pnpm dev
    ```
 
-4. **Abrir el navegador**
+5. **Abrir el navegador**
    La aplicación estará disponible en [http://localhost:3000](http://localhost:3000)
 
 ## 📦 Scripts Disponibles
@@ -53,12 +67,17 @@ postify/
 ├── app/                # Rutas y páginas de la aplicación
 │   ├── feed/          # Página del feed
 │   ├── create/        # Página de creación de posts
+│   ├── edit/          # Página de edición de posts
 │   ├── analytics/     # Página de análisis
 │   └── settings/      # Página de configuración
 ├── components/        # Componentes reutilizables
-├── styles/           # Estilos globales
+│   ├── ui/           # Componentes de UI (shadcn)
+│   └── post-preview.tsx # Componente de vista previa de post
+├── lib/              # Utilidades y configuraciones
+│   ├── utils.ts      # Funciones de utilidad
+│   └── supabase.ts   # Cliente de Supabase
 ├── public/           # Archivos estáticos
-└── lib/             # Utilidades y configuraciones
+└── styles/           # Estilos globales
 ```
 
 ## 🔧 Configuración
@@ -74,6 +93,7 @@ La aplicación utiliza varias bibliotecas de Radix UI para componentes de interf
 La aplicación está diseñada para ser completamente responsive:
 - Vista móvil: Barra lateral colapsada con iconos
 - Vista desktop: Barra lateral expandida con texto completo
+- Vista de cuadrícula y lista para visualizar publicaciones
 
 ## 🤝 Contribución
 
