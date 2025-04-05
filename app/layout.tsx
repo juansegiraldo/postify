@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
+import { InstagramAccountProvider } from './contexts/InstagramAccountContext'
 
 export const metadata: Metadata = {
   title: 'v0 App',
@@ -16,8 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
-        <Toaster />
+        <InstagramAccountProvider>
+          {children}
+          <Toaster />
+        </InstagramAccountProvider>
       </body>
     </html>
   )

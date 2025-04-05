@@ -1,6 +1,6 @@
 # 🚀 Postify
 
-Postify es una aplicación web moderna para la gestión y programación de contenido en redes sociales, construida con Next.js y TypeScript.
+Postify es una aplicación web para gestionar y programar publicaciones en Instagram. Permite a los usuarios gestionar múltiples cuentas de Instagram, crear y programar publicaciones, y analizar el rendimiento de sus posts.
 
 ## 📋 Características
 
@@ -14,6 +14,13 @@ Postify es una aplicación web moderna para la gestión y programación de conte
 - 🔔 Notificaciones toast para feedback al usuario
 - 🖱️ Funcionalidad de arrastrar y soltar para reorganizar publicaciones
 - 🛠️ Manejo robusto de errores y validación de datos
+- **Gestión de múltiples cuentas de Instagram**: Añade, edita y elimina cuentas de Instagram con facilidad.
+- **Selector de cuentas**: Cambia rápidamente entre tus diferentes cuentas de Instagram.
+- **Creación de posts**: Crea y programa publicaciones para tus cuentas de Instagram.
+- **Feed de Instagram**: Visualiza tus publicaciones en un formato similar al de Instagram.
+- **Calendario**: Organiza tus publicaciones programadas en un calendario visual.
+- **Analíticas**: Obtén información sobre el rendimiento de tus publicaciones.
+- **Persistencia de datos**: Tus cuentas y configuraciones se guardan localmente.
 
 ## 🛠️ Tecnologías
 
@@ -26,16 +33,23 @@ Postify es una aplicación web moderna para la gestión y programación de conte
 - [Lucide Icons](https://lucide.dev/)
 - [Supabase](https://supabase.com/) (Base de datos y autenticación)
 - [DND Kit](https://dnd-kit.com/) (Drag and Drop)
+- **Context API**: Para la gestión de estado global.
+- **LocalStorage**: Para la persistencia de datos.
 
 ## 🚀 Inicio Rápido
 
 1. **Clonar el repositorio**
    ```bash
-   git clone [url-del-repositorio]
+   git clone https://github.com/tu-usuario/postify.git
+   cd postify
    ```
 
 2. **Instalar dependencias**
    ```bash
+   npm install
+   # o
+   yarn install
+   # o
    pnpm install
    ```
 
@@ -47,6 +61,10 @@ Postify es una aplicación web moderna para la gestión y programación de conte
 
 4. **Iniciar el servidor de desarrollo**
    ```bash
+   npm run dev
+   # o
+   yarn dev
+   # o
    pnpm dev
    ```
 
@@ -97,13 +115,7 @@ La aplicación está diseñada para ser completamente responsive:
 
 ## 🤝 Contribución
 
-Las contribuciones son bienvenidas. Por favor, asegúrate de:
-
-1. Hacer fork del repositorio
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit de tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
+Las contribuciones son bienvenidas. Por favor, abre un issue para discutir los cambios que te gustaría hacer.
 
 ## 📄 Licencia
 

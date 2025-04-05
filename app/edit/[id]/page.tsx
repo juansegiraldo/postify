@@ -5,5 +5,9 @@ import { useParams } from "next/navigation"
 
 export default function EditPost() {
   const params = useParams()
-  return <PostPage mode="edit" id={Number(params.id)} />
+  const id = Number(params.id)
+  
+  console.log(`Edit page loaded with ID: ${id}`)
+  
+  return <PostPage mode="edit" id={id} />
 } 

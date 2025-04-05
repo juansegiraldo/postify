@@ -140,6 +140,8 @@ export default function PostPage({ mode, id }: PostPageProps) {
   // Fetch post data if in edit mode
   useEffect(() => {
     if (mode === "edit" && id) {
+      console.log(`Fetching post data for ID: ${id}`);
+      
       const fetchPost = async () => {
         try {
           const response = await fetch('/api/posts');
@@ -147,7 +149,10 @@ export default function PostPage({ mode, id }: PostPageProps) {
             throw new Error('Failed to fetch posts');
           }
           const posts = await response.json();
+          console.log(`Fetched ${posts.length} posts`);
+          
           const foundPost = posts.find((p: any) => p.id === id);
+          console.log(`Found post:`, foundPost);
           
           if (foundPost) {
             setPost(foundPost);
@@ -157,6 +162,7 @@ export default function PostPage({ mode, id }: PostPageProps) {
               setImages([foundPost.image]);
             }
           } else {
+            console.error(`Post with ID ${id} not found`);
             router.push("/feed");
           }
         } catch (error) {
@@ -329,7 +335,14 @@ export default function PostPage({ mode, id }: PostPageProps) {
         images: images,
       };
 
+      // Ensure the post ID is included when updating
+      if (mode === "edit" && id) {
+        postData.id = id;
+      }
+
       const method = mode === "edit" ? "PUT" : "POST";
+      console.log(`Saving post with method ${method}:`, postData);
+      
       const response = await fetch('/api/posts', {
         method,
         headers: {
@@ -339,14 +352,18 @@ export default function PostPage({ mode, id }: PostPageProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save post');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save post');
       }
 
+      const savedPost = await response.json();
+      console.log('Post saved successfully:', savedPost);
+      
       alert(`Post ${mode === "edit" ? "updated" : "created"} successfully!`);
       router.push("/feed");
     } catch (error) {
       console.error('Error saving post:', error);
-      alert(`Error ${mode === "edit" ? "updating" : "creating"} post. Please try again.`);
+      alert(`Error ${mode === "edit" ? "updating" : "creating"} post: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

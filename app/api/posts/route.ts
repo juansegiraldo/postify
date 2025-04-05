@@ -35,9 +35,22 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const post = await request.json();
+    console.log('PUT request received:', post);
+    
+    // Validate that the post has an ID
+    if (!post.id) {
+      console.error('Post ID is missing in PUT request');
+      return NextResponse.json(
+        { error: 'Post ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const index = posts.findIndex(p => p.id === post.id);
+    console.log(`Found post at index: ${index}`);
     
     if (index === -1) {
+      console.error(`Post with ID ${post.id} not found`);
       return NextResponse.json(
         { error: 'Post not found' },
         { status: 404 }
@@ -51,7 +64,9 @@ export async function PUT(request: Request) {
       id: posts[index].id, // Ensure ID doesn't change
     };
     
+    // Update the post in the array
     posts[index] = updatedPost;
+    console.log('Post updated successfully:', updatedPost);
     
     return NextResponse.json(updatedPost);
   } catch (error) {

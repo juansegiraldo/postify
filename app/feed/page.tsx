@@ -44,6 +44,8 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useRouter } from "next/navigation"
+import { InstagramAccountSelector } from "@/components/InstagramAccountSelector"
+import { useInstagramAccount } from "@/app/contexts/InstagramAccountContext"
 
 // Define the Post type
 interface Post {
@@ -187,7 +189,7 @@ function SortableGridItem({ post, isDragging }: { post: Post; isDragging?: boole
 
 export default function FeedPage() {
   const [activeTab, setActiveTab] = useState("posts")
-  const [activeAccount, setActiveAccount] = useState("@JUAN")
+  const { activeAccount } = useInstagramAccount()
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid")
   const [posts, setPosts] = useState<Post[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
@@ -197,7 +199,7 @@ export default function FeedPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const { toast } = useToast();
 
-  // Fetch posts when component mounts
+  // Fetch posts when component mounts or activeAccount changes
   useEffect(() => {
     const fetchPosts = async () => {
       try {
@@ -206,14 +208,16 @@ export default function FeedPage() {
           throw new Error('Failed to fetch posts');
         }
         const data = await response.json();
-        setPosts(data);
+        // Filter posts by active account
+        const filteredPosts = data.filter((post: Post) => post.username === activeAccount.username);
+        setPosts(filteredPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
       }
     };
 
     fetchPosts();
-  }, []);
+  }, [activeAccount]);
 
   const router = useRouter()
 
@@ -285,14 +289,13 @@ export default function FeedPage() {
 
       // 2. Create the post object (assuming API assigns ID)
       const newPostData = {
-        username: activeAccount || "user", // Ensure username is not undefined
+        username: activeAccount.username,
         caption: "created automatically",
-        image: imageUrl, // Use the URL from the upload response
+        image: imageUrl,
         likes: 0,
         comments: 0,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), // Simple date string
-        platform: "instagram", // Default platform
-        // Add other necessary fields if your Post type/API requires them
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        platform: "instagram",
       };
       console.log("Creating post with data:", newPostData); // Debug log
 
@@ -314,7 +317,7 @@ export default function FeedPage() {
       // Ensure the created post has all required fields
       const safeCreatedPost = {
         ...createdPost,
-        username: createdPost.username || activeAccount || "user",
+        username: createdPost.username || activeAccount.username,
         caption: createdPost.caption || "created automatically",
         image: createdPost.image || imageUrl,
         platform: createdPost.platform || "instagram",
@@ -423,41 +426,11 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center w-full">
-              <Link href="/" className="mr-4">
-                <ChevronLeft className="h-5 w-5" />
-              </Link>
-              <h1 className="text-lg font-medium text-gray-900">Feed</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex border rounded-md overflow-hidden">
-                <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  className="rounded-none"
-                  onClick={() => setViewMode("list")}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
-                  size="sm"
-                  className="rounded-none"
-                  onClick={() => setViewMode("grid")}
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-              </div>
-              <Link href="/create">
-                <Button variant="default" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Post
-                </Button>
-              </Link>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center">
+          <Link href="/" className="mr-4">
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <h1 className="text-lg font-medium text-gray-900">Feed</h1>
         </div>
       </header>
 
@@ -474,19 +447,7 @@ export default function FeedPage() {
         <Card className="overflow-hidden border-0 shadow-lg rounded-xl">
           {/* Phone mockup header */}
           <div className="bg-white p-4 flex items-center justify-between border-b">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="p-0 h-auto font-bold text-blue-600 flex items-center">
-                  {activeAccount}
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setActiveAccount("@JUAN")}>@JUAN</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveAccount("@BUSINESS")}>@BUSINESS</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setActiveAccount("@TRAVEL")}>@TRAVEL</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <InstagramAccountSelector />
 
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
