@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { v4 as uuidv4 } from 'uuid'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -47,16 +48,38 @@ import { useRouter } from "next/navigation"
 import { InstagramAccountSelector } from "@/components/InstagramAccountSelector"
 import { useInstagramAccount } from "@/app/contexts/InstagramAccountContext"
 
-// Define the Post type
+// Define the Post type to match both the UI needs and database structure
 interface Post {
-  id: number
-  username: string
-  caption: string
-  image: string
-  likes: number
-  comments: number
-  date: string
-  platform: string
+  id: number | string
+  username?: string
+  caption?: string
+  image?: string
+  likes?: number
+  comments?: number
+  date?: string
+  platform?: string
+  
+  // Database fields
+  user_id?: string
+  title?: string
+  content?: string
+  status?: string
+  created_at?: string
+  updated_at?: string
+  
+  // Joined data
+  profiles?: {
+    id: string
+    username: string
+    full_name: string
+    avatar_url?: string
+  }
+  media?: {
+    id: string
+    post_id: string
+    url: string
+    type: string
+  }[]
 }
 
 // Sortable Post Item component
@@ -201,16 +224,66 @@ export default function FeedPage() {
 
   // Fetch posts when component mounts or activeAccount changes
   useEffect(() => {
+    if (!activeAccount) return; // Skip if no active account
+    
     const fetchPosts = async () => {
       try {
+        // Get posts with profiles and media
         const response = await fetch('/api/posts');
         if (!response.ok) {
           throw new Error('Failed to fetch posts');
         }
         const data = await response.json();
-        // Filter posts by active account
-        const filteredPosts = data.filter((post: Post) => post.username === activeAccount.username);
-        setPosts(filteredPosts);
+        
+        // For debugging
+        console.log("Raw posts data:", data);
+        
+        // Filter posts by active account username
+        const filteredPosts = data.filter((post: Post) => 
+          post.profiles?.username === activeAccount.username
+        );
+        
+        console.log("Filtered posts:", filteredPosts);
+        
+        // For each post that doesn't have media info, fetch it separately
+        const enhancedPosts = await Promise.all(filteredPosts.map(async (post: Post) => {
+          let postMedia = post.media;
+          
+          // If we don't have media info, fetch it for this post
+          if (!postMedia || postMedia.length === 0) {
+            try {
+              const mediaResponse = await fetch(`/api/media?post_id=${post.id}`);
+              if (mediaResponse.ok) {
+                const mediaData = await mediaResponse.json();
+                if (mediaData && mediaData.length > 0) {
+                  postMedia = mediaData;
+                  console.log(`Found ${mediaData.length} media items for post ${post.id}`);
+                }
+              }
+            } catch (mediaError) {
+              console.error("Error fetching media for post:", post.id, mediaError);
+            }
+          }
+          
+          // Transform each post to have UI-friendly fields
+          const uiPost = {
+            ...post,
+            id: post.id,
+            username: post.profiles?.username || activeAccount.username,
+            caption: post.title || '',
+            // Use media URL if available, otherwise empty string
+            image: postMedia && postMedia.length > 0 ? postMedia[0].url : '',
+            platform: 'instagram',
+            likes: 0,
+            comments: 0,
+            date: new Date(post.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            media: postMedia  // Keep the full media array for reference
+          };
+          return uiPost;
+        }));
+        
+        console.log("Enhanced posts with media:", enhancedPosts);
+        setPosts(enhancedPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
       }
@@ -233,6 +306,15 @@ export default function FeedPage() {
 
   // Handles the actual file processing and post creation
   const handleQuickCreatePost = async (file: File) => {
+    if (!activeAccount) {
+      toast({
+        title: "No active account",
+        description: "Please select an Instagram account first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!file || !file.type.startsWith('image/')) {
       toast({
         title: "Invalid file",
@@ -287,15 +369,63 @@ export default function FeedPage() {
          throw new Error("Image URL not found in upload response.")
       }
 
-      // 2. Create the post object (assuming API assigns ID)
+      // 2. Look for an existing profile or create a new one for the post
+      // First check if a profile exists for the username
+      let userId;
+      
+      try {
+        // Try to fetch an existing profile first
+        const username = activeAccount?.username || 'test_user';
+        const profilesResponse = await fetch(`/api/profiles?username=${username}`);
+        
+        if (profilesResponse.ok) {
+          const profilesData = await profilesResponse.json();
+          
+          if (profilesData && profilesData.length > 0) {
+            // Use existing profile's ID
+            userId = profilesData[0].id;
+            console.log("Using existing profile with ID:", userId);
+          } else {
+            // No existing profile found, create a new one
+            const testUserId = uuidv4();
+            
+            const createProfileResponse = await fetch('/api/profiles', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: testUserId,
+                username: username,
+                full_name: activeAccount?.displayName || 'Test User',
+                avatar_url: null
+              })
+            });
+            
+            if (createProfileResponse.ok) {
+              const profileData = await createProfileResponse.json();
+              userId = profileData.id;
+              console.log("Created new profile with ID:", userId);
+            } else {
+              throw new Error("Failed to create profile");
+            }
+          }
+        } else {
+          throw new Error("Failed to fetch profiles");
+        }
+      } catch (error) {
+        console.error("Profile handling error:", error);
+        throw new Error("Failed to handle user profile for post creation");
+      }
+      
+      // Generate a unique post ID
+      const postId = uuidv4();
+      
+      // 3. Create the post object
       const newPostData = {
-        username: activeAccount.username,
-        caption: "created automatically",
-        image: imageUrl,
-        likes: 0,
-        comments: 0,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        platform: "instagram",
+        id: postId,
+        user_id: userId, // Use the profile ID we found or created
+        title: "created automatically", // Title field
+        content: "Post created from feed page", // Content field
+        status: "published"
       };
       console.log("Creating post with data:", newPostData); // Debug log
 
@@ -314,13 +444,45 @@ export default function FeedPage() {
       const createdPost = await postResponse.json(); // Assuming API returns the created post with ID
       console.log("Post created:", createdPost); // Debug log
 
-      // Ensure the created post has all required fields
+      // 3. Create media record to link the image with the post
+      const mediaResponse = await fetch('/api/media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: createdPost.id,
+          url: imageUrl,
+          type: file.type
+        }),
+      });
+
+      if (!mediaResponse.ok) {
+        const errorData = await mediaResponse.text();
+        console.error("Media record creation failed:", errorData);
+        throw new Error('Failed to create media record');
+      }
+      
+      const mediaData = await mediaResponse.json();
+      console.log("Media record created:", mediaData);
+      
+      // 4. Ensure the created post has all required fields and adapt it to the UI expected format
+      // For newly created posts, we set the media manually for immediate display
       const safeCreatedPost = {
         ...createdPost,
-        username: createdPost.username || activeAccount.username,
-        caption: createdPost.caption || "created automatically",
-        image: createdPost.image || imageUrl,
-        platform: createdPost.platform || "instagram",
+        id: createdPost.id, 
+        username: activeAccount?.username || 'anonymous', // UI display username with fallback
+        caption: createdPost.title || "created automatically",
+        image: imageUrl, // Use the uploaded image URL for immediate display
+        date: new Date(createdPost.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        platform: "instagram",
+        likes: 0,
+        comments: 0,
+        // Also include the media object to match the database structure
+        media: [{
+          id: mediaData.id,
+          post_id: postId,
+          url: imageUrl,
+          type: file.type
+        }]
       };
 
       // 4. Update state - add to the beginning of the list
