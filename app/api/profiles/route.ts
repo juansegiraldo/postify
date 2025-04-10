@@ -1,15 +1,47 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
+// Path to the JSON file that will store our profiles
+const DATA_DIR = join(process.cwd(), 'data');
+const PROFILES_FILE = join(DATA_DIR, 'profiles.json');
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase configuration in environment variables');
+// Type definition for profile items
+interface Profile {
+  id: string;
+  username: string;
+  full_name?: string;
+  avatar_url?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Helper function to ensure the data directory and files exist
+async function ensureDataFilesExist() {
+  if (!existsSync(DATA_DIR)) {
+    await mkdir(DATA_DIR, { recursive: true });
+  }
+  
+  // Create profiles.json if it doesn't exist
+  if (!existsSync(PROFILES_FILE)) {
+    await writeFile(PROFILES_FILE, JSON.stringify([]), 'utf8');
+  }
+}
+
+// Helper function to read profiles data
+async function getProfiles(): Promise<Profile[]> {
+  await ensureDataFilesExist();
+  const profilesData = await readFile(PROFILES_FILE, 'utf8');
+  return JSON.parse(profilesData);
+}
+
+// Helper function to write profiles data
+async function saveProfiles(profiles: Profile[]): Promise<void> {
+  await ensureDataFilesExist();
+  await writeFile(PROFILES_FILE, JSON.stringify(profiles, null, 2), 'utf8');
+}
 
 export async function GET(request: Request) {
   try {
@@ -17,20 +49,19 @@ export async function GET(request: Request) {
     const username = searchParams.get('username');
     const userId = searchParams.get('id');
     
-    let query = supabase.from('profiles').select('*');
+    let profiles = await getProfiles();
     
+    // Filter by username if provided
     if (username) {
-      query = query.eq('username', username);
+      profiles = profiles.filter(profile => profile.username === username);
     }
     
+    // Filter by id if provided
     if (userId) {
-      query = query.eq('id', userId);
+      profiles = profiles.filter(profile => profile.id === userId);
     }
     
-    const { data, error } = await query;
-    
-    if (error) throw error;
-    return NextResponse.json(data || []);
+    return NextResponse.json(profiles || []);
   } catch (error: any) {
     console.error('Error fetching profiles:', error.message);
     return NextResponse.json(
@@ -52,22 +83,34 @@ export async function POST(request: Request) {
       );
     }
     
-    // Insert profile into Supabase
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert(profile)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating profile:', error.message);
+    // Get existing profiles
+    const profiles = await getProfiles();
+    
+    // Check if username already exists
+    if (profiles.some(p => p.username === profile.username)) {
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Username already exists' },
         { status: 409 }
       );
     }
     
-    return NextResponse.json(data);
+    // Create a new profile with a UUID
+    const newProfile: Profile = {
+      id: profile.id || uuidv4(),
+      username: profile.username,
+      full_name: profile.full_name,
+      avatar_url: profile.avatar_url,
+      created_at: profile.created_at || new Date().toISOString(),
+      updated_at: profile.updated_at || new Date().toISOString()
+    };
+    
+    // Add the new profile
+    profiles.push(newProfile);
+    
+    // Save to the JSON file
+    await saveProfiles(profiles);
+    
+    return NextResponse.json(newProfile);
   } catch (error: any) {
     console.error('Error creating profile:', error.message);
     return NextResponse.json(
@@ -89,23 +132,43 @@ export async function PUT(request: Request) {
       );
     }
     
-    // Update the profile in Supabase
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(profile)
-      .eq('id', profile.id)
-      .select()
-      .single();
+    // Get existing profiles
+    const profiles = await getProfiles();
     
-    if (error) {
-      console.error('Error updating profile:', error.message);
+    // Find the profile to update
+    const profileIndex = profiles.findIndex(p => p.id === profile.id);
+    
+    if (profileIndex === -1) {
       return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
+        { error: 'Profile not found' },
+        { status: 404 }
       );
     }
     
-    return NextResponse.json(data);
+    // If username is being changed, check if it already exists
+    if (profile.username && profile.username !== profiles[profileIndex].username) {
+      if (profiles.some(p => p.username === profile.username && p.id !== profile.id)) {
+        return NextResponse.json(
+          { error: 'Username already exists' },
+          { status: 409 }
+        );
+      }
+    }
+    
+    // Update the profile
+    const updatedProfile: Profile = {
+      ...profiles[profileIndex],
+      ...profile,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Replace the old profile in the array
+    profiles[profileIndex] = updatedProfile;
+    
+    // Save to the JSON file
+    await saveProfiles(profiles);
+    
+    return NextResponse.json(updatedProfile);
   } catch (error: any) {
     console.error('Error updating profile:', error.message);
     return NextResponse.json(

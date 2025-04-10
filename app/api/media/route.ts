@@ -1,31 +1,61 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
+// Path to the JSON file that will store our media
+const DATA_DIR = join(process.cwd(), 'data');
+const MEDIA_FILE = join(DATA_DIR, 'media.json');
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase configuration in environment variables');
+// Helper function to ensure the data directory and files exist
+async function ensureDataFilesExist() {
+  if (!existsSync(DATA_DIR)) {
+    await mkdir(DATA_DIR, { recursive: true });
+  }
+  
+  // Create media.json if it doesn't exist
+  if (!existsSync(MEDIA_FILE)) {
+    await writeFile(MEDIA_FILE, JSON.stringify([]), 'utf8');
+  }
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Helper function to read media data
+async function getMedia() {
+  await ensureDataFilesExist();
+  const mediaData = await readFile(MEDIA_FILE, 'utf8');
+  return JSON.parse(mediaData);
+}
+
+// Helper function to write media data
+async function saveMedia(media: Media[]) {
+  await ensureDataFilesExist();
+  await writeFile(MEDIA_FILE, JSON.stringify(media, null, 2), 'utf8');
+}
+
+// Type definition for media items
+interface Media {
+  id: string;
+  post_id: string;
+  url: string;
+  type: string;
+  created_at?: string;
+}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const postId = searchParams.get('post_id');
     
-    let query = supabase.from('media').select('*');
+    // Get all media
+    const media = await getMedia();
     
-    if (postId) {
-      query = query.eq('post_id', postId);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) throw error;
-    return NextResponse.json(data || []);
+    // Filter by post_id if provided
+    const filteredMedia = postId
+      ? media.filter((item: Media) => item.post_id === postId)
+      : media;
+      
+    return NextResponse.json(filteredMedia || []);
   } catch (error: any) {
     console.error('Error fetching media:', error.message);
     return NextResponse.json(
@@ -54,22 +84,25 @@ export async function POST(request: Request) {
       );
     }
     
-    // Insert media record into Supabase
-    const { data, error } = await supabase
-      .from('media')
-      .insert(mediaRecord)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating media record:', error.message);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 409 }
-      );
-    }
+    // Get existing media records
+    const mediaItems = await getMedia();
     
-    return NextResponse.json(data);
+    // Create a new media record with a UUID
+    const newMediaRecord: Media = {
+      id: mediaRecord.id || uuidv4(),
+      post_id: mediaRecord.post_id,
+      url: mediaRecord.url,
+      type: mediaRecord.type || 'image/jpeg',
+      created_at: mediaRecord.created_at || new Date().toISOString()
+    };
+    
+    // Add the new media record
+    mediaItems.push(newMediaRecord);
+    
+    // Save to the JSON file
+    await saveMedia(mediaItems);
+    
+    return NextResponse.json(newMediaRecord);
   } catch (error: any) {
     console.error('Error creating media record:', error.message);
     return NextResponse.json(
