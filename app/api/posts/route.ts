@@ -1,32 +1,85 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// In-memory storage for posts (this would be a database in a real app)
-let posts: any[] = [];
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
 
-export async function GET() {
-  return NextResponse.json(posts);
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing Supabase configuration in environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('user_id');
+    
+    let query = supabase.from('posts').select(`
+      *,
+      profiles(*),
+      media(*)
+    `).order('created_at', { ascending: false });
+    
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return NextResponse.json(data || []);
+  } catch (error: any) {
+    console.error('Error fetching posts:', error.message);
+    return NextResponse.json(
+      { error: 'Error fetching posts' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const post = await request.json();
     
-    // Add required fields
+    // Validate required fields
+    if (!post.id || !post.user_id) {
+      return NextResponse.json(
+        { error: 'Post ID and user_id are required' },
+        { status: 400 }
+      );
+    }
+    
+    // Add timestamps if not provided
     const newPost = {
       ...post,
-      id: posts.length + 1,
-      likes: 0,
-      comments: 0,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      created_at: post.created_at || new Date().toISOString(),
+      updated_at: post.updated_at || new Date().toISOString(),
     };
     
-    posts.unshift(newPost); // Add to beginning of array
+    console.log('Creating post with data:', newPost);
     
-    return NextResponse.json(newPost);
-  } catch (error) {
-    console.error('Error creating post:', error);
+    // Insert post record into Supabase
+    const { data, error } = await supabase
+      .from('posts')
+      .insert(newPost)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating post:', error.message);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+    
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('Error creating post:', error.message);
     return NextResponse.json(
-      { error: 'Error creating post' },
+      { error: 'Error creating post: ' + error.message },
       { status: 500 }
     );
   }
@@ -35,45 +88,100 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const post = await request.json();
-    console.log('PUT request received:', post);
     
     // Validate that the post has an ID
     if (!post.id) {
-      console.error('Post ID is missing in PUT request');
       return NextResponse.json(
         { error: 'Post ID is required' },
         { status: 400 }
       );
     }
     
-    const index = posts.findIndex(p => p.id === post.id);
-    console.log(`Found post at index: ${index}`);
+    // Add updated timestamp
+    const updatedPost = {
+      ...post,
+      updated_at: new Date().toISOString(),
+    };
     
-    if (index === -1) {
-      console.error(`Post with ID ${post.id} not found`);
+    // Update the post in Supabase
+    const { data, error } = await supabase
+      .from('posts')
+      .update(updatedPost)
+      .eq('id', post.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating post:', error.message);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+    
+    if (!data) {
       return NextResponse.json(
         { error: 'Post not found' },
         { status: 404 }
       );
     }
     
-    // Update the post while preserving fields that shouldn't change
-    const updatedPost = {
-      ...posts[index],
-      ...post,
-      id: posts[index].id, // Ensure ID doesn't change
-    };
-    
-    // Update the post in the array
-    posts[index] = updatedPost;
-    console.log('Post updated successfully:', updatedPost);
-    
-    return NextResponse.json(updatedPost);
-  } catch (error) {
-    console.error('Error updating post:', error);
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('Error updating post:', error.message);
     return NextResponse.json(
-      { error: 'Error updating post' },
+      { error: 'Error updating post: ' + error.message },
       { status: 500 }
     );
   }
-} 
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Post ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // First, delete any media associated with the post
+    const { error: mediaError } = await supabase
+      .from('media')
+      .delete()
+      .eq('post_id', id);
+    
+    if (mediaError) {
+      console.error('Error deleting post media:', mediaError.message);
+      return NextResponse.json(
+        { error: mediaError.message },
+        { status: 500 }
+      );
+    }
+    
+    // Then delete the post
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting post:', error.message);
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+    
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting post:', error.message);
+    return NextResponse.json(
+      { error: 'Error deleting post: ' + error.message },
+      { status: 500 }
+    );
+  }
+}

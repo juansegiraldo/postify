@@ -22,6 +22,9 @@ import {
   Grid,
   List,
   Loader2,
+  Upload,
+  X,
+  Pencil,
 } from "lucide-react"
 import { PostPreview } from "@/components/post-preview"
 import {
@@ -47,6 +50,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { useRouter } from "next/navigation"
 import { InstagramAccountSelector } from "@/components/InstagramAccountSelector"
 import { useInstagramAccount } from "@/app/contexts/InstagramAccountContext"
+import { cn } from "@/lib/utils"
 
 // Define the Post type to match both the UI needs and database structure
 interface Post {
@@ -83,7 +87,12 @@ interface Post {
 }
 
 // Sortable Post Item component
-function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boolean }) {
+function SortablePostItem({ post, isDragging, onDelete, onEdit }: {
+  post: Post;
+  isDragging?: boolean;
+  onDelete: (id: string | number) => void;
+  onEdit: (id: string | number) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: post.id })
   const router = useRouter()
 
@@ -96,8 +105,13 @@ function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boole
   const handleEditClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log(`Navigating to edit page for post ID: ${post.id}`);
-    router.push(`/edit/${post.id}`);
+    onEdit(post.id); // Use the passed handler
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete(post.id); // Use the passed handler
   };
 
   // Ensure post data is valid
@@ -122,26 +136,24 @@ function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boole
           caption={safePost.caption} 
           imageUrl={safePost.image} 
         />
-        <div className="absolute top-2 right-2 z-10">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleEditClick}>
-                <Edit2 className="h-4 w-4 mr-2" />
-                Edit Post
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Instagram className="h-4 w-4 mr-2" />
-                Post Now
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-500">Delete Post</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Edit Button (Top Left) */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 left-2 z-10 h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full shadow-sm"
+          onClick={handleEditClick}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        {/* Delete Button (Top Right) */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 z-10 h-8 w-8 p-0 bg-white/80 hover:bg-red-100 text-red-500 rounded-full shadow-sm"
+          onClick={handleDeleteClick}
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
       <div className="mt-2 flex justify-between items-center text-sm text-gray-500">
         <span>{safePost.date}</span>
@@ -157,7 +169,12 @@ function SortablePostItem({ post, isDragging }: { post: Post; isDragging?: boole
 }
 
 // Grid Item component
-function SortableGridItem({ post, isDragging }: { post: Post; isDragging?: boolean }) {
+function SortableGridItem({ post, isDragging, onDelete, onEdit }: {
+  post: Post;
+  isDragging?: boolean;
+  onDelete: (id: string | number) => void;
+  onEdit: (id: string | number) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: post.id })
   const router = useRouter()
 
@@ -170,8 +187,13 @@ function SortableGridItem({ post, isDragging }: { post: Post; isDragging?: boole
   const handleEditClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log(`Navigating to edit page for post ID: ${post.id}`);
-    router.push(`/edit/${post.id}`);
+    onEdit(post.id); // Use the passed handler
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete(post.id); // Use the passed handler
   };
 
   // Ensure post data is valid
@@ -196,16 +218,24 @@ function SortableGridItem({ post, isDragging }: { post: Post; isDragging?: boole
         height={500}
         className="object-cover w-full h-full"
       />
-      <div className="absolute top-2 right-2 z-20">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full shadow-sm"
-          onClick={handleEditClick}
-        >
-          <Edit2 className="h-4 w-4" />
-        </Button>
-      </div>
+      {/* Edit Button (Top Left) */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 left-2 z-20 h-8 w-8 p-0 bg-white/80 hover:bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+        onClick={handleEditClick}
+      >
+        <Pencil className="h-4 w-4" />
+      </Button>
+      {/* Delete Button (Top Right) */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 z-20 h-8 w-8 p-0 bg-white/80 hover:bg-red-100 text-red-500 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+        onClick={handleDeleteClick}
+      >
+        <X className="h-4 w-4" />
+      </Button>
     </div>
   )
 }
@@ -220,7 +250,7 @@ export default function FeedPage() {
   const [isDraggingOverAdd, setIsDraggingOverAdd] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const { toast } = useToast();
+  const { toast } = useToast()
 
   // Fetch posts when component mounts or activeAccount changes
   useEffect(() => {
@@ -449,9 +479,9 @@ export default function FeedPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          post_id: createdPost.id,
+          post_id: postId, // Link to the post
           url: imageUrl,
-          type: file.type
+          type: file.type,
         }),
       });
 
@@ -576,6 +606,41 @@ export default function FeedPage() {
     router.push(`/edit/${id}`)
   }
 
+  // Handle delete post
+  const handleDeletePost = async (id: number | string) => {
+    if (!window.confirm("Are you sure you want to delete this post?")) {
+      return; // Cancelled by user
+    }
+
+    try {
+      const response = await fetch(`/api/posts?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Delete failed:", errorData);
+        throw new Error('Failed to delete post');
+      }
+
+      // Remove post from local state
+      setPosts(currentPosts => currentPosts.filter(post => post.id !== id));
+      
+      toast({
+        title: "Post Deleted",
+        description: "The post has been successfully deleted.",
+      });
+
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast({
+        title: "Error Deleting Post",
+        description: error instanceof Error ? error.message : "An unknown error occurred.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Filter posts based on active tab
   const filteredPosts = posts.filter((post) => {
     if (activeTab === "posts") return true
@@ -699,6 +764,8 @@ export default function FeedPage() {
                             key={post.id} 
                             post={post} 
                             isDragging={activeId === post.id}
+                            onDelete={handleDeletePost}
+                            onEdit={handleEditPost}
                           />
                         ))}
                       </SortableContext>
@@ -707,6 +774,8 @@ export default function FeedPage() {
                           <SortablePostItem 
                             post={filteredPosts.find(p => p.id === activeId)!} 
                             isDragging={true}
+                            onDelete={handleDeletePost}
+                            onEdit={handleEditPost}
                           />
                         ) : null}
                       </DragOverlay>
@@ -764,6 +833,8 @@ export default function FeedPage() {
                           key={post.id}
                           post={post}
                           isDragging={activeId === post.id}
+                          onDelete={handleDeletePost}
+                          onEdit={handleEditPost}
                         />
                       ))}
                     </SortableContext>
@@ -773,6 +844,8 @@ export default function FeedPage() {
                         <SortableGridItem
                           post={filteredPosts.find(p => p.id === activeId)!}
                           isDragging={true}
+                          onDelete={handleDeletePost}
+                          onEdit={handleEditPost}
                         />
                       ) : null}
                     </DragOverlay>
@@ -820,4 +893,3 @@ export default function FeedPage() {
     </div>
   )
 }
-
