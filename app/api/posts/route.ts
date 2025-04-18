@@ -121,20 +121,26 @@ export async function GET(request: Request) {
     const postId = searchParams.get('id');
     
     // Get all our data
-    const posts = await getPosts();
+    let posts = await getPosts(); // Changed to let for reassignment
     const media = await getMedia();
     const profiles = await getProfiles();
     
     // If a specific post is requested by ID
     if (postId) {
-      const post = await getPostWithRelations(postId);
-      if (!post) {
+      // Find the post first (no sorting needed for single fetch)
+      const singlePost = posts.find((p: Post) => p.id === postId);
+      if (!singlePost) {
         return NextResponse.json(
           { error: 'Post not found' },
           { status: 404 }
         );
       }
-      return NextResponse.json(post);
+       // Attach relations for the single post
+      singlePost.media = media.filter((m: Media) => m.post_id === postId);
+      if (singlePost.user_id) {
+        singlePost.profiles = profiles.find((p: Profile) => p.id === singlePost.user_id) || null;
+      }
+      return NextResponse.json(singlePost);
     }
     
     // Filter posts by user_id if provided
@@ -142,10 +148,18 @@ export async function GET(request: Request) {
       ? posts.filter((post: any) => post.user_id === userId)
       : posts;
     
-    // Sort by created_at descending
+    // --- Sort by post_order, then by created_at descending --- 
     filteredPosts = filteredPosts.sort((a: any, b: any) => {
+      const orderA = a.post_order ?? Infinity; // Treat null/undefined as last
+      const orderB = b.post_order ?? Infinity;
+      
+      if (orderA !== orderB) {
+        return orderA - orderB; // Sort by order number first
+      }
+      // If order is the same (or both are null/undefined), sort by date
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
+    // --------------------------------------------------------
     
     // Attach media and profiles to each post
     const postsWithRelations = filteredPosts.map((post: any) => {

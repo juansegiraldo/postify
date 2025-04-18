@@ -6,7 +6,8 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T19:44:38.782Z",
-    "updated_at": "2025-04-10T19:44:38.783Z"
+    "updated_at": "2025-04-10T19:44:38.783Z",
+    "post_order": null
   },
   {
     "id": "535a815e-11da-431f-b603-9dac2023b52f",
@@ -15,7 +16,8 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T19:53:34.228Z",
-    "updated_at": "2025-04-10T19:53:34.228Z"
+    "updated_at": "2025-04-10T19:53:34.228Z",
+    "post_order": null
   },
   {
     "id": "671966ad-c3be-4dcb-9469-86f38c823c89",
@@ -24,7 +26,8 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T19:53:45.997Z",
-    "updated_at": "2025-04-10T19:53:45.997Z"
+    "updated_at": "2025-04-10T19:53:45.997Z",
+    "post_order": null
   },
   {
     "id": "028f16b2-30e6-49da-a5ff-994fe1b1d748",
@@ -33,7 +36,8 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T20:08:19.427Z",
-    "updated_at": "2025-04-10T20:08:19.427Z"
+    "updated_at": "2025-04-10T20:08:19.427Z",
+    "post_order": null
   },
   {
     "id": "e851b9e9-fd00-4df8-81c0-05e693c13233",
@@ -42,7 +46,8 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T20:08:31.437Z",
-    "updated_at": "2025-04-10T20:08:31.437Z"
+    "updated_at": "2025-04-10T20:08:31.437Z",
+    "post_order": null
   },
   {
     "id": "afb6291a-539e-4748-ba39-ea5ae8150cce",
@@ -51,7 +56,8 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T20:09:01.379Z",
-    "updated_at": "2025-04-10T20:09:01.379Z"
+    "updated_at": "2025-04-10T20:09:01.379Z",
+    "post_order": 3
   },
   {
     "id": "ddd77981-64f1-47e7-8547-b9326b253c95",
@@ -60,7 +66,8 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T20:09:03.847Z",
-    "updated_at": "2025-04-10T20:09:03.847Z"
+    "updated_at": "2025-04-10T20:09:03.847Z",
+    "post_order": 1
   },
   {
     "id": "eff3d196-8423-427d-bcdd-873c3528e2fa",
@@ -69,6 +76,17 @@
     "content": "Post created from feed page",
     "status": "published",
     "created_at": "2025-04-10T20:09:06.187Z",
-    "updated_at": "2025-04-10T20:09:06.187Z"
+    "updated_at": "2025-04-10T20:09:06.187Z",
+    "post_order": 2
+  },
+  {
+    "id": "ced14d28-01ac-4f45-8728-b79a44dc158d",
+    "user_id": "b50e1628-31e3-4719-854d-0a244ec5c6ef",
+    "title": "created automatically",
+    "content": "Post created from feed page",
+    "status": "published",
+    "created_at": "2025-04-18T22:35:47.765Z",
+    "updated_at": "2025-04-18T22:35:47.765Z",
+    "post_order": 0
   }
 ]

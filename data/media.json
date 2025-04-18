@@ -47,5 +47,12 @@
     "url": "/uploads/1744315745771-JSG3.jpeg",
     "type": "image/jpeg",
     "created_at": "2025-04-10T20:09:06.519Z"
+  },
+  {
+    "id": "01cd1499-d390-454c-88b3-3678942fce9c",
+    "post_id": "ced14d28-01ac-4f45-8728-b79a44dc158d",
+    "url": "/uploads/1745015746441-6.png",
+    "type": "image/png",
+    "created_at": "2025-04-18T22:35:49.374Z"
   }
 ]

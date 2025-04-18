@@ -313,6 +313,8 @@ export default function FeedPage() {
         }));
         
         console.log("Enhanced posts with media:", enhancedPosts);
+
+        // Set posts directly from enhancedPosts - backend now handles sorting
         setPosts(enhancedPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
@@ -588,21 +590,81 @@ export default function FeedPage() {
 
   // Handle drag end event
   function handleDragEnd(event: DragEndEvent) {
+    console.log("handleDragEnd triggered");
     setActiveId(null)
     const { active, over } = event
 
     if (over && active.id !== over.id) {
+      console.log(`Dragging item ${active.id} over ${over.id}`);
+      // No outer orderedIds variable needed
+
       setPosts((items) => {
+        console.log("setPosts callback started");
         const oldIndex = items.findIndex((item) => item.id === active.id)
         const newIndex = items.findIndex((item) => item.id === over.id)
 
-        return arrayMove(items, oldIndex, newIndex)
+        // Generate the newly ordered list for UI update
+        const newItems = arrayMove(items, oldIndex, newIndex)
+        
+        // Extract the IDs *from the new list*
+        const currentOrderedIds = newItems.map(item => item.id);
+        console.log("Inside setPosts - currentOrderedIds:", currentOrderedIds);
+
+        // --- Call the API to save the order *from inside the callback* ---
+        if (currentOrderedIds.length > 0) {
+           console.log("Calling savePostOrder from within setPosts...");
+           savePostOrder(currentOrderedIds).catch(error => {
+             console.error("Failed to save post order to backend:", error);
+             toast({
+               title: "Error Saving Order",
+               description: "Could not save the new post order. It might be lost on refresh.",
+               variant: "destructive",
+             });
+           });
+        } else {
+           console.error("Cannot save order: currentOrderedIds array is empty inside setPosts.");
+        }
+        // ------------------------------------------------------------
+
+        // Return the new state for the immediate UI update
+        return newItems
       })
+
+      // Ensure the code that referenced the old outer orderedIds variable is removed
     }
   }
 
+  // --- Add the API calling function --- 
+  async function savePostOrder(orderedIds: (string | number)[]) {
+    console.log("savePostOrder function called with IDs:", orderedIds); // Log function entry
+    try {
+      const response = await fetch('/api/posts/order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderedIds }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save post order');
+      }
+
+      const result = await response.json();
+      console.log('Post order saved successfully:', result.message);
+      // Optional: Show a success toast if desired
+      // toast({ title: "Order Saved", description: "Post order updated." });
+
+    } catch (error) {
+      // Error is logged and handled by the caller in handleDragEnd
+      throw error; 
+    }
+  }
+  // ------------------------------------
+
   // Handle edit post
-  const handleEditPost = (id: number) => {
+  const handleEditPost = (id: number | string) => {
     router.push(`/edit/${id}`)
   }
 
