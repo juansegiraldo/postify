@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import lockfile from 'proper-lockfile';
 
 // Path to the JSON file that will store our media
 const DATA_DIR = join(process.cwd(), 'data');
@@ -20,17 +21,19 @@ async function ensureDataFilesExist() {
   }
 }
 
-// Helper function to read media data
-async function getMedia() {
+// Helper function to read media data (no locking needed for read generally)
+async function getMedia(): Promise<Media[]> {
   await ensureDataFilesExist();
-  const mediaData = await readFile(MEDIA_FILE, 'utf8');
-  return JSON.parse(mediaData);
-}
-
-// Helper function to write media data
-async function saveMedia(media: Media[]) {
-  await ensureDataFilesExist();
-  await writeFile(MEDIA_FILE, JSON.stringify(media, null, 2), 'utf8');
+  try {
+    const mediaData = await readFile(MEDIA_FILE, 'utf8');
+    return JSON.parse(mediaData) as Media[];
+  } catch (error: any) {
+     if (error.code === 'ENOENT') {
+       return []; 
+     }
+     console.error("Error reading media file:", error);
+     return [];
+  }
 }
 
 // Type definition for media items
@@ -66,25 +69,26 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let release;
   try {
     const mediaRecord = await request.json();
     
-    // Validate required fields
-    if (!mediaRecord.post_id) {
+    // Validation (keep existing checks)
+    if (!mediaRecord.post_id || !mediaRecord.url) { 
       return NextResponse.json(
-        { error: 'post_id is required' },
-        { status: 400 }
+        { error: 'post_id and url are required' }, 
+        { status: 400 } 
       );
     }
-    
-    if (!mediaRecord.url) {
-      return NextResponse.json(
-        { error: 'url is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Get existing media records
+
+    console.log(`Attempting to lock ${MEDIA_FILE} for media creation...`);
+    release = await lockfile.lock(MEDIA_FILE, { 
+      retries: { retries: 5, factor: 3, minTimeout: 100, maxTimeout: 300 },
+      lockfilePath: `${MEDIA_FILE}.lock`
+    });
+    console.log(`${MEDIA_FILE} locked successfully for media creation.`);
+
+    // Get existing media records (while holding lock)
     const mediaItems = await getMedia();
     
     // Create a new media record with a UUID
@@ -99,16 +103,30 @@ export async function POST(request: Request) {
     // Add the new media record
     mediaItems.push(newMediaRecord);
     
-    // Save to the JSON file
-    await saveMedia(mediaItems);
+    // Save to the JSON file (while holding lock)
+    await writeFile(MEDIA_FILE, JSON.stringify(mediaItems, null, 2), 'utf8');
+    console.log(`${MEDIA_FILE} written successfully after media creation.`);
     
+    // Return the created record
     return NextResponse.json(newMediaRecord);
+
   } catch (error: any) {
     console.error('Error creating media record:', error.message);
+    // Ensure error response structure is consistent
     return NextResponse.json(
-      { error: 'Error creating media record: ' + error.message },
+      { error: `Error creating media record: ${error.message}` }, 
       { status: 500 }
     );
+  } finally {
+    // Ensure lock is always released
+    if (release) {
+      try {
+        await release();
+        console.log(`${MEDIA_FILE} media creation lock released.`);
+      } catch (releaseError) {
+        console.error(`Error releasing media creation lock for ${MEDIA_FILE}:`, releaseError);
+      }
+    }
   }
 }
 
@@ -124,6 +142,8 @@ export async function DELETE(request: Request) {
       );
     }
     
+    // --- Comment out Supabase code --- 
+    /*
     const { error } = await supabase
       .from('media')
       .delete()
@@ -136,8 +156,19 @@ export async function DELETE(request: Request) {
         { status: 500 }
       );
     }
+    */
+    // -------------------------------
+
+    // TODO: Implement deletion from media.json using locking
+    console.warn(`Deletion for media ID ${id} not implemented for JSON file storage yet.`);
     
-    return NextResponse.json({ success: true });
+    // Return success temporarily, or an error indicating not implemented
+    // return NextResponse.json({ success: true }); 
+    return NextResponse.json(
+        { error: 'Media deletion from JSON not implemented yet.' },
+        { status: 501 } // 501 Not Implemented
+     );
+
   } catch (error: any) {
     console.error('Error deleting media:', error.message);
     return NextResponse.json(

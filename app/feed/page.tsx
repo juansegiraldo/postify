@@ -553,9 +553,23 @@ export default function FeedPage() {
 
   // Handles file selection from the hidden input
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      handleQuickCreatePost(file);
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      // Loop through all selected files
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file) {
+          // Call create post for each file (they will be processed sequentially)
+          // Consider adding better UI for multiple uploads later
+          handleQuickCreatePost(file);
+        }
+      }
+    } else {
+      console.log("No files selected.");
+    }
+     // Reset file input value to allow selecting the same file(s) again
+    if (fileInputRef.current) {
+        fileInputRef.current.value = "";
     }
   };
 
@@ -573,11 +587,20 @@ export default function FeedPage() {
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDraggingOverAdd(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) {
-      handleQuickCreatePost(file);
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0) {
+      console.log(`Dropped ${files.length} files.`); // Log dropped file count
+      // Loop through all dropped files
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file) {
+          // Call create post for each file (they will be processed sequentially)
+          // Consider adding better UI for multiple uploads later
+          handleQuickCreatePost(file); 
+        }
+      }
     } else {
-       console.log("No file dropped or file type not supported."); // Debug log
+      console.log("No files dropped or file type not supported.");
     }
   };
 
@@ -679,10 +702,10 @@ export default function FeedPage() {
         method: 'DELETE',
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Delete failed:", errorData);
-        throw new Error('Failed to delete post');
+        throw new Error(data.error || 'Failed to delete post');
       }
 
       // Remove post from local state
@@ -690,7 +713,7 @@ export default function FeedPage() {
       
       toast({
         title: "Post Deleted",
-        description: "The post has been successfully deleted.",
+        description: data.message || "The post has been successfully deleted.",
       });
 
     } catch (error) {
@@ -724,12 +747,13 @@ export default function FeedPage() {
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6">
-        {/* Hidden file input */}
+        {/* Hidden file input - ADD multiple attribute */}
         <input
           type="file"
           ref={fileInputRef}
           onChange={handleFileInputChange}
           accept="image/*"
+          multiple
           style={{ display: 'none' }}
         />
 

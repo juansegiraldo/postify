@@ -421,6 +421,7 @@ export default function PostPage() {
                             width={600}
                             height={600}
                             className="object-cover"
+                            priority
                           />
                         ) : (
                           <div className="text-center p-4">

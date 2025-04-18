@@ -1,122 +1,119 @@
-# 🚀 Postify
+# Postify - Social Media Post Management System
 
-Postify es una aplicación web para gestionar y programar publicaciones en Instagram. Permite a los usuarios gestionar múltiples cuentas de Instagram, crear y programar publicaciones, y analizar el rendimiento de sus posts.
+Postify is a modern web application for managing and scheduling social media posts across multiple platforms. Built with Next.js and TypeScript, it provides a user-friendly interface for creating, editing, and organising social media content.
 
-## 📋 Características
+## Features
 
-- 📱 Interfaz responsive y moderna
-- 📊 Dashboard con métricas de engagement
-- 📅 Programación de publicaciones
-- 📈 Análisis de rendimiento
-- ⚡ Acciones rápidas para crear y gestionar contenido
-- 🔄 Vista de cuadrícula y lista para visualizar publicaciones
-- 📤 Carga de imágenes con indicador de progreso
-- 🔔 Notificaciones toast para feedback al usuario
-- 🖱️ Funcionalidad de arrastrar y soltar para reorganizar publicaciones
-- 🛠️ Manejo robusto de errores y validación de datos
-- **Gestión de múltiples cuentas de Instagram**: Añade, edita y elimina cuentas de Instagram con facilidad.
-- **Selector de cuentas**: Cambia rápidamente entre tus diferentes cuentas de Instagram.
-- **Creación de posts**: Crea y programa publicaciones para tus cuentas de Instagram.
-- **Feed de Instagram**: Visualiza tus publicaciones en un formato similar al de Instagram.
-- **Calendario**: Organiza tus publicaciones programadas en un calendario visual.
-- **Analíticas**: Obtén información sobre el rendimiento de tus publicaciones.
-- **Persistencia de datos**: Tus cuentas y configuraciones se guardan localmente.
+- Create and edit social media posts
+- Support for multiple platforms (Instagram, Facebook, Twitter, LinkedIn, YouTube)
+- Drag-and-drop image upload
+- Post scheduling and drafts
+- Grid and list view options
+- Real-time preview
+- Post reordering with drag-and-drop
 
-## 🛠️ Tecnologías
+## Prerequisites
 
-- [Next.js 15](https://nextjs.org/)
-- [React 19](https://reactjs.org/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Radix UI](https://www.radix-ui.com/)
-- [Shadcn UI](https://ui.shadcn.com/)
-- [Lucide Icons](https://lucide.dev/)
-- [Supabase](https://supabase.com/) (Base de datos y autenticación)
-- [DND Kit](https://dnd-kit.com/) (Drag and Drop)
-- **Context API**: Para la gestión de estado global.
-- **LocalStorage**: Para la persistencia de datos.
+Before you begin, ensure you have the following installed:
 
-## 🚀 Inicio Rápido
+- Node.js (v18 or later)
+- pnpm (Package Manager)
+- Git
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/tu-usuario/postify.git
-   cd postify
-   ```
+## Installation
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   # o
-   yarn install
-   # o
-   pnpm install
-   ```
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd postify
+```
 
-3. **Configurar variables de entorno**
-   ```bash
-   cp .env.example .env.local
-   ```
-   Edita el archivo `.env.local` con tus credenciales de Supabase.
+2. Install dependencies:
+```bash
+pnpm install
+```
 
-4. **Iniciar el servidor de desarrollo**
-   ```bash
-   npm run dev
-   # o
-   yarn dev
-   # o
-   pnpm dev
-   ```
+3. Create a `.env` file in the root directory with the following variables:
+```env
+# Add any environment variables here
+```
 
-5. **Abrir el navegador**
-   La aplicación estará disponible en [http://localhost:3000](http://localhost:3000)
+## Required Dependencies
 
-## 📦 Scripts Disponibles
+### Core Dependencies
+- `next`: ^14.0.0
+- `react`: ^18.2.0
+- `react-dom`: ^18.2.0
+- `typescript`: ^5.0.0
 
-- `pnpm dev` - Inicia el servidor de desarrollo
-- `pnpm build` - Construye la aplicación para producción
-- `pnpm start` - Inicia la aplicación en modo producción
-- `pnpm lint` - Ejecuta el linter
+### UI Components
+- `@radix-ui/react-*`: Various UI primitives
+- `class-variance-authority`: For styling variants
+- `clsx`: For conditional class names
+- `tailwind-merge`: For merging Tailwind classes
+- `tailwindcss`: ^3.0.0
+- `postcss`: ^8.0.0
+- `autoprefixer`: ^10.0.0
 
-## 🏗️ Estructura del Proyecto
+### State Management & Utilities
+- `@dnd-kit/core`: For drag-and-drop functionality
+- `@dnd-kit/sortable`: For sortable lists
+- `@dnd-kit/utilities`: DnD utilities
+- `uuid`: For generating unique IDs
+- `date-fns`: For date manipulation
+
+### Development Dependencies
+- `@types/node`: ^20.0.0
+- `@types/react`: ^18.2.0
+- `@types/react-dom`: ^18.2.0
+- `eslint`: ^8.0.0
+- `eslint-config-next`: ^14.0.0
+- `prettier`: ^3.0.0
+- `typescript`: ^5.0.0
+
+## Project Structure
 
 ```
 postify/
-├── app/                # Rutas y páginas de la aplicación
-│   ├── feed/          # Página del feed
-│   ├── create/        # Página de creación de posts
-│   ├── edit/          # Página de edición de posts
-│   ├── analytics/     # Página de análisis
-│   └── settings/      # Página de configuración
-├── components/        # Componentes reutilizables
-│   ├── ui/           # Componentes de UI (shadcn)
-│   └── post-preview.tsx # Componente de vista previa de post
-├── lib/              # Utilidades y configuraciones
-│   ├── utils.ts      # Funciones de utilidad
-│   └── supabase.ts   # Cliente de Supabase
-├── public/           # Archivos estáticos
-└── styles/           # Estilos globales
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   ├── feed/              # Feed page
+│   └── [mode]/[id]/      # Post creation/editing
+├── components/            # Reusable components
+├── public/               # Static assets
+├── data/                 # JSON data storage
+└── styles/              # Global styles
 ```
 
-## 🔧 Configuración
+## Running the Application
 
-La aplicación utiliza varias bibliotecas de Radix UI para componentes de interfaz de usuario. La configuración principal se puede encontrar en:
+1. Start the development server:
+```bash
+pnpm dev
+```
 
-- `tailwind.config.ts` - Configuración de Tailwind CSS
-- `next.config.mjs` - Configuración de Next.js
-- `components.json` - Configuración de componentes UI
+2. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 📱 Diseño Responsive
+## Building for Production
 
-La aplicación está diseñada para ser completamente responsive:
-- Vista móvil: Barra lateral colapsada con iconos
-- Vista desktop: Barra lateral expandida con texto completo
-- Vista de cuadrícula y lista para visualizar publicaciones
+1. Build the application:
+```bash
+pnpm build
+```
 
-## 🤝 Contribución
+2. Start the production server:
+```bash
+pnpm start
+```
 
-Las contribuciones son bienvenidas. Por favor, abre un issue para discutir los cambios que te gustaría hacer.
+## Contributing
 
-## 📄 Licencia
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles. 
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 

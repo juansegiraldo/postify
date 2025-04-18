@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import lockfile from 'proper-lockfile';
 
 // Path to the JSON file that will store our posts
 const DATA_DIR = join(process.cwd(), 'data');
@@ -84,16 +85,66 @@ interface Profile {
   avatar_url?: string;
 }
 
-// Helper function to write posts
+// Helper function to write posts with locking
 async function savePosts(posts: Post[]): Promise<void> {
   await ensureDataFilesExist();
-  await writeFile(POSTS_FILE, JSON.stringify(posts, null, 2), 'utf8');
+  let release;
+  try {
+    // Acquire lock (retries built-in, waits if already locked)
+    console.log(`Attempting to lock ${POSTS_FILE}...`);
+    release = await lockfile.lock(POSTS_FILE, { 
+      retries: { retries: 5, factor: 3, minTimeout: 100, maxTimeout: 300 },
+      lockfilePath: `${POSTS_FILE}.lock` // Use a specific lock file path
+    });
+    console.log(`${POSTS_FILE} locked successfully.`);
+    
+    // Write the file while holding the lock
+    await writeFile(POSTS_FILE, JSON.stringify(posts, null, 2), 'utf8');
+    console.log(`${POSTS_FILE} written successfully.`);
+
+  } catch (error) {
+    console.error(`Error during savePosts for ${POSTS_FILE}:`, error);
+    throw error; // Re-throw error after logging
+  } finally {
+    // Ensure the lock is always released
+    if (release) {
+      try {
+        await release();
+        console.log(`${POSTS_FILE} lock released.`);
+      } catch (releaseError) {
+        console.error(`Error releasing lock for ${POSTS_FILE}:`, releaseError);
+      }
+    }
+  }
 }
 
-// Helper function to write media
+// Helper function to write media (needs locking too, refactor where it's defined)
+// Assuming it might be defined here temporarily for the DELETE operation
 async function saveMedia(media: Media[]): Promise<void> {
   await ensureDataFilesExist();
-  await writeFile(MEDIA_FILE, JSON.stringify(media, null, 2), 'utf8');
+  let release;
+  try {
+    console.log(`Attempting to lock ${MEDIA_FILE}...`);
+    release = await lockfile.lock(MEDIA_FILE, {
+      retries: { retries: 5, factor: 3, minTimeout: 100, maxTimeout: 300 },
+      lockfilePath: `${MEDIA_FILE}.lock`
+    });
+    console.log(`${MEDIA_FILE} locked successfully.`);
+    await writeFile(MEDIA_FILE, JSON.stringify(media, null, 2), 'utf8');
+    console.log(`${MEDIA_FILE} written successfully.`);
+  } catch (error) {
+     console.error(`Error during saveMedia for ${MEDIA_FILE}:`, error);
+     throw error;
+  } finally {
+    if (release) {
+      try {
+        await release();
+        console.log(`${MEDIA_FILE} lock released.`);
+      } catch (releaseError) {
+        console.error(`Error releasing lock for ${MEDIA_FILE}:`, releaseError);
+      }
+    }
+  }
 }
 
 // Helper function to get a post with its related data
@@ -291,9 +342,8 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // Get current posts and media
+    // Get current posts
     const posts = await getPosts();
-    const media = await getMedia();
     
     // Find the post to delete
     const postIndex = posts.findIndex((p: Post) => p.id === id);
@@ -305,15 +355,11 @@ export async function DELETE(request: Request) {
       );
     }
     
-    // First, filter out any media associated with this post
-    const updatedMedia = media.filter((m: Media) => m.post_id !== id);
-    await saveMedia(updatedMedia);
-    
-    // Then remove the post from the posts array
+    // Remove the post from the posts array
     posts.splice(postIndex, 1);
     await savePosts(posts);
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Post deleted successfully' });
   } catch (error: any) {
     console.error('Error deleting post:', error.message);
     return NextResponse.json(
